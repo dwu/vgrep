@@ -74,7 +74,7 @@ var (
 	version string
 
 	commands = [...]string{"print", "show", "context", "tree", "delete",
-		"keep", "refine", "files", "grep", "quit", "?"}
+		"keep", "refine", "Refine (extended)", "files", "grep", "quit", "?"}
 )
 
 func main() {
@@ -741,6 +741,21 @@ func (v *vgrep) dispatchCommand(input string) bool {
 		return v.commandRefine(cmdArray[1])
 	}
 
+	if cmdArray[0] == "R" || cmdArray[0] == "Refine" {
+		if len(cmdArray) != 2 {
+			fmt.Println("Refine (extended) expects action (d/k), object (f/c) and regexp arguments")
+			return false
+		}
+
+		args := strings.SplitN(cmdArray[1], " ", 3)
+		if len(args) != 3 {
+			fmt.Println("refine action must be either 'd' (delete) or 'k' (keep) and object must be either 'f' (filename) or 'c' (content)")
+			return false
+		}
+
+		return v.commandRefineExtended(args[0], args[1], args[2])
+	}
+
 	if cmdArray[0] == "g" || cmdArray[0] == "grep" {
 		if len(cmdArray) < 2 {
 			fmt.Println("grep expects at least a pattern")
@@ -1062,6 +1077,25 @@ func (v *vgrep) commandRefine(expr string) bool {
 	var toDelete []int
 	for offset, grepMatch := range v.matches {
 		if !pattern.Match([]byte(ansi.RemoveANSI(grepMatch[3]))) {
+			toDelete = append(toDelete, offset)
+		}
+	}
+	return v.commandDelete(toDelete)
+}
+
+// commandRefineExtended refined the previous search by filtering using either
+// keep (k) or delete (d) actions on either filename (f) or match (m).
+func (v *vgrep) commandRefineExtended(action string, object string, expr string) bool {
+	pattern, err := regexp.Compile(expr)
+	if err != nil {
+		fmt.Printf("failed to compile '%s' as a regexp\n", expr)
+		return false
+	}
+
+	var toDelete []int
+	for offset, grepMatch := range v.matches {
+		matches := (object == "f" && pattern.Match([]byte(ansi.RemoveANSI(grepMatch[1])))) || (object == "c" && pattern.Match([]byte(ansi.RemoveANSI(grepMatch[3]))))
+		if (action == "k" && !matches) || (action == "d" && matches) {
 			toDelete = append(toDelete, offset)
 		}
 	}

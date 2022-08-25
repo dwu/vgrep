@@ -1,114 +1,77 @@
-![vgrep logo](logo.png)
+Fork of https://github.com/vrothberg/vgrep with experimental patches.
 
-[![Build Status](https://api.cirrus-ci.com/github/vrothberg/vgrep.svg)](https://cirrus-ci.com/github/vrothberg/vgrep)
+## Extended refine
 
-**vgrep** is a pager for `grep`, `git-grep`, `ripgrep` and similar grep implementations, and allows for opening the indexed file locations in a user-specified editor such as vim or emacs.  vgrep is inspired by the ancient **cgvg** scripts but extended to perform further operations such as listing statistics of files and directory trees or showing the context lines before and after the matches. vgrep runs on Linux, Windows and Mac OS.
+New vgrep command `Refine (extended)` supports either **k**eeping or **d**eleting matches based on a regexp
+match on either **f**ilename or **c**ontent.
 
-Please, feel free to copy, improve, distribute and share.  Feedback and patches are always welcome!
+This enables quickly narrowing down the list of matches:
 
-# Install Instructions
+- `R d f foo` deletes all matches whose filename match the pattern "foo"
+- `R k c bar` keeps all matches where the line content matches the pattern "bar"
 
-* You can install `vgrep` on [Fedora](https://src.fedoraproject.org/rpms/vgrep), [openSUSE](https://software.opensuse.org/package/vgrep), [archlinux](https://aur.archlinux.org/packages/vgrep/), [Gentoo](https://packages.gentoo.org/packages/app-text/vgrep), and on Mac OS via [MacPorts](https://ports.macports.org/port/vgrep/summary) and [Homebrew](https://formulae.brew.sh/formula/vgrep).
-* On other systems, you can build and install `vgrep` manually via `make build` and `make install`.
+### Example
 
-# Searching Patterns
-The basic functionality of vgrep is to perform textual searches. On a technical level, vgrep serves as a front-end to grep or git-grep when invoking vgrep inside a git tree and uses `less` for displaying the results.  All non-vgrep flags and arguments will be passed down to grep.  Results of the last search are cached, so running vgrep without a new query will load previous results and operate on them.
+Initial search:
 
-An example call may look as follows:
-
-![](screenshots/vgrep-simple-search.png)
-
-By default, the output will be written to `less` to make browsing large amounts of data more comfortable. `vgrep --no-less` will write to stdout.  The path to the cache is `$LOCALAPPDATA/vgrep-cache/vgrep-go` on Windows and `$HOME/.cache/vgrep-go` on Unix systems.
-
-# Opening Matches
-vgrep can open the indexed file locations in an editor specified by the `EDITOR` environment variable. Opening one of the file locations from the previous example may look as follows:
-
-```
-# export EDITOR=gedit
-# vgrep --show 4
-```
-
-![](screenshots/vgrep-show-gedit.png)
-
-The default editor of vgrep is `vim` with the default flag to open a file at a specific line being `+` followed by the line number.  If your editor of choice hits the rare case of a different syntax, use the `EDITORLINEFLAG` environment variable to adjust.  For example, a `kate` user may set the environment to ``EDITOR="kate"`` and ``EDITORLINEFLAG="-l"``.
-
-Note that `vgrep` does not allow for searching and opening files at the same time. For instance, `vgrep --show=files text` should be split in two commands: `vgrep text` and `vgrep --show=files`.
-
-## IDE Support
-
-Note that if you run `vgrep` inside a terminal of VSCode or Goland, the format of listed files changes to "$PATH:$LINE" to allow for opening the matches in the editor via a simple mouse click.
-
-# More Commands and the Interactive Shell
-
-Once vgreped, you can perform certain operations on the results such as limiting the range of indexed matches, listing matching files and directories and more.
-```
-Enter a vgrep command: ?
-vgrep command help: command[context lines] [selectors]
-         selectors: '3' (single), '1,2,6' (multi), '1-8' (range), 'all'
-          commands: print, show, context, tree, delete, keep, refine, files, grep, quit, ?
-```
-vgrep commands can be passed directly to the ``--show/-s`` flag, for instance as ``--show c5 1-10`` to show the five context lines of the first ten matched lines.  Furthermore, the commands can be executed in an interactive shell via the ``--interactive/-i`` flag. Running ``vgrep --interactive`` will enter the shell directly, ``vgrep --show 1 --interactive`` will first open the first matched line in the editor and enter the interactive shell after.
-
-vgrep supports the following commands:
-
-- ``print`` to limit the range of matched lines to be printed. ``p 1-12,20`` prints the first 12 lines and the 20th line.
-- ``show`` to open the selectors in an user-specified editor (requires selectors).
-- ``context`` to print the context lines before and after the matched lines. ``c10 3-9`` prints 10 context lines of the matching lines 3 to 9.  Unless specified, vgrep will print 5 context lines.
-- ``tree`` to print the number of matches for each directory in the tree.
-- ``delete`` to remove lines at selected indices from the results, for the duration of the interactive shell (requires selectors).
-- ``keep`` to keep only lines at selected indices from the results, for the duration of the interactive shell (requires selectors).
-- ``refine`` to keep only lines matching the provided regexp pattern from the results, for the duration of the interactive shell (requires a regexp string).
-- ``files`` will print the number of matches for each file in the tree.
-- ``grep`` start a new search without leaving the interactive shell (requires arguments for a ``vgrep`` search). For example, ``g -i "foo bar" dir/`` will trigger a case-insensitive search for ``foo bar`` in the files under ``dir``. The cache will be updated with the results from the new search.
-- ``quit`` to exit the interactive shell.
-- ``?`` to show the help for vgrep commands.
-
-# vgrep command examples
-
-## Context lines
-![](screenshots/vgrep-context.png)
-
-## Tree
-![](screenshots/vgrep-tree.png)
-
-## Files
-![](screenshots/vgrep-files.png)
-
-## fzf
-
-![](https://user-images.githubusercontent.com/7258858/103111382-b00c7f80-464c-11eb-9e47-c36ed89253a1.png)
-
-If you desire a more interactive experience than running vgrep twice to first search and then to open an editor, you may have a look at fzf. The below function uses [fzf](https://github.com/junegunn/fzf) to interactively search with vgrep and open your editor with one enter at the correct line.
-To use it add the following function to your ``.bashrc`` and install fzf alongside vgrep and ripgrep.
-
-```shell
-vgrep() {
-  INITIAL_QUERY="$1"
-  VGREP_PREFIX="vgrep --no-header "
-  FZF_DEFAULT_COMMAND="$VGREP_PREFIX '$INITIAL_QUERY'" \
-  fzf --bind "change:reload:$VGREP_PREFIX {q} || true" --ansi --phony --tac --query "$INITIAL_QUERY" \
-  | awk '{print $1}' | xargs -I{} -o vgrep --show {}
-}
+```console
+$ vgrep setJobExecutorActivate
+Index File                                                                                                                                         Line Content
+    0 spring-boot-starter/starter/src/main/java/org/camunda/bpm/spring/boot/starter/configuration/impl/DefaultJobConfiguration.java                  69 configuration.setJobExecutorActivate(false);
+    1 quarkus-extension/engine/qa/src/test/java/org/camunda/bpm/engine/cdi/test/CdiProcessEngineTestCase.java                                       164 engineConfig.setJobExecutorActivate(false);
+    2 quarkus-extension/engine/runtime/src/main/java/org/camunda/bpm/quarkus/engine/extension/QuarkusProcessEngineConfiguration.java                 38 setJobExecutorActivate(true);
+    3 quarkus-extension/engine/deployment/src/test/java/org/camunda/bpm/quarkus/engine/test/ConfigurableProcessEngineTest.java                       48 engineConfig.setJobExecutorActivate(false);
+    4 quarkus-extension/engine/deployment/src/test/java/org/camunda/bpm/quarkus/engine/test/config/CamundaEngineProgrammaticAndConfigFileTest.java   58 engineConfig.setJobExecutorActivate(false);
+    5 engine-spring/core/src/test/java/org/camunda/bpm/engine/spring/test/configuration/InMemProcessEngineConfiguration.java                         64 config.setJobExecutorActivate(false);
+    6 distro/wildfly/subsystem/src/main/java/org/camunda/bpm/container/impl/jboss/config/ManagedJtaProcessEngineConfiguration.java                   35 setJobExecutorActivate(true);
+    7 engine/src/main/java/org/camunda/bpm/engine/ProcessEngineConfiguration.java                                                                   758 public ProcessEngineConfiguration setJobExecutorActivate(boolean jobExecutorActivate) {
+    8 engine/src/main/java/org/camunda/bpm/engine/impl/cfg/ProcessEngineConfigurationImpl.java                                                     3626 public ProcessEngineConfigurationImpl setJobExecutorActivate(boolean jobExecutorActivate) {
+    9 engine/src/main/java/org/camunda/bpm/engine/impl/cfg/ProcessEngineConfigurationImpl.java                                                     3627 super.setJobExecutorActivate(jobExecutorActivate);
+   10 engine/src/main/java/org/camunda/bpm/container/impl/deployment/StartProcessEngineStep.java                                                    100 setJobExecutorActivate(configuration, properties);
+   11 engine/src/main/java/org/camunda/bpm/container/impl/deployment/StartProcessEngineStep.java                                                    123 protected void setJobExecutorActivate(ProcessEngineConfigurationImpl configuration, Map<String, String> properties) {
+   12 engine/src/main/java/org/camunda/bpm/container/impl/deployment/StartProcessEngineStep.java                                                    126 configuration.setJobExecutorActivate(true);
+   13 engine/src/test/java/org/camunda/bpm/engine/test/jobexecutor/SequentialJobAcquisitionTest.java                                                 82 standaloneProcessEngineConfiguration.setJobExecutorActivate(false);
+   14 engine/src/test/java/org/camunda/bpm/engine/test/jobexecutor/SequentialJobAcquisitionTest.java                                                115 engineConfiguration1.setJobExecutorActivate(false);
+   15 engine/src/test/java/org/camunda/bpm/engine/test/jobexecutor/SequentialJobAcquisitionTest.java                                                125 engineConfiguration2.setJobExecutorActivate(false);
+   16 engine/src/test/java/org/camunda/bpm/engine/test/jobexecutor/SequentialJobAcquisitionTest.java                                                175 engineConfiguration1.setJobExecutorActivate(false);
+   17 engine/src/test/java/org/camunda/bpm/engine/test/jobexecutor/SequentialJobAcquisitionTest.java                                                185 engineConfiguration2.setJobExecutorActivate(false);
+   18 engine/src/test/java/org/camunda/bpm/engine/test/api/authorization/DefaultUserPermissionNameForTaskCfgTest.java                               129 .setJobExecutorActivate(false)
+   19 engine/src/test/java/org/camunda/bpm/engine/test/api/runtime/RuntimeServiceTest.java                                                         2745 .setJobExecutorActivate(false)
+   20 engine/src/test/java/org/camunda/bpm/engine/test/api/runtime/RuntimeServiceTest.java                                                         2774 .setJobExecutorActivate(false)
+   21 engine/src/test/java/org/camunda/bpm/engine/test/api/repository/RepositoryServiceTest.java                                                    762 .setJobExecutorActivate(false)
+   22 engine/src/test/java/org/camunda/bpm/engine/test/api/repository/RepositoryServiceTest.java                                                    770 .setJobExecutorActivate(false)
+   23 camunda-bpm-spring-boot-starter/starter/src/main/java/org/camunda/bpm/spring/boot/starter/configuration/impl/DefaultJobConfiguration.java      69 configuration.setJobExecutorActivate(false);
 ```
 
-### For fish shell
+Remove all test classes:
 
-The below version pipes the result of the initial query with `vgrep` to `fzf` to allow further selection among the results. 
-
-```fish
-function vgf --wraps=vgrep --description 'vgrep search with fzf'
-    set -f INITIAL_QUERY $argv[1]
-    vgrep --no-header $INITIAL_QUERY | fzf --ansi --bind "Ctrl-d:half-page-down,Ctrl-u:half-page-up" | awk '{print $1}' | xargs -I{} -o vgrep --show {}
-end
+```console
+$ vgrep --interactive
+Enter a vgrep command: R d f Test
+Enter a vgrep command: p
+Index File                                                                                                                                      Line Content
+    0 spring-boot-starter/starter/src/main/java/org/camunda/bpm/spring/boot/starter/configuration/impl/DefaultJobConfiguration.java               69 configuration.setJobExecutorActivate(false);
+    1 quarkus-extension/engine/runtime/src/main/java/org/camunda/bpm/quarkus/engine/extension/QuarkusProcessEngineConfiguration.java              38 setJobExecutorActivate(true);
+    2 engine-spring/core/src/test/java/org/camunda/bpm/engine/spring/test/configuration/InMemProcessEngineConfiguration.java                      64 config.setJobExecutorActivate(false);
+    3 distro/wildfly/subsystem/src/main/java/org/camunda/bpm/container/impl/jboss/config/ManagedJtaProcessEngineConfiguration.java                35 setJobExecutorActivate(true);
+    4 engine/src/main/java/org/camunda/bpm/engine/ProcessEngineConfiguration.java                                                                758 public ProcessEngineConfiguration setJobExecutor>
+    5 engine/src/main/java/org/camunda/bpm/engine/impl/cfg/ProcessEngineConfigurationImpl.java                                                  3626 public ProcessEngineConfigurationImpl setJobExec>
+    6 engine/src/main/java/org/camunda/bpm/engine/impl/cfg/ProcessEngineConfigurationImpl.java                                                  3627 super.setJobExecutorActivate(jobExecutorActivate>
+    7 engine/src/main/java/org/camunda/bpm/container/impl/deployment/StartProcessEngineStep.java                                                 100 setJobExecutorActivate(configuration, properties>
+    8 engine/src/main/java/org/camunda/bpm/container/impl/deployment/StartProcessEngineStep.java                                                 123 protected void setJobExecutorActivate(ProcessEng>
+    9 engine/src/main/java/org/camunda/bpm/container/impl/deployment/StartProcessEngineStep.java                                                 126 configuration.setJobExecutorActivate(true);
+   10 camunda-bpm-spring-boot-starter/starter/src/main/java/org/camunda/bpm/spring/boot/starter/configuration/impl/DefaultJobConfiguration.java   69 configuration.setJobExecutorActivate(false);
 ```
 
-To have a variant, which restarts the search with `vgrep` on entering a new query, use the below version.
+Keep all lines containing "configuration":
 
-```fish
-function vgF --wraps=vgrep --description 'vgrep search with fzf'
-    set -f INITIAL_QUERY $argv[1]
-    FZF_DEFAULT_COMMAND="vgrep --no-header $INITIAL_QUERY" fzf --bind "Ctrl-d:half-page-down,Ctrl-u:half-page-up,change:reload:vgrep --no-header {q} || true" --ansi --phony --tac --query $INITIAL_QUERY | awk '{print $1}' | xargs -I{} -o vgrep --show {}
-end
+```console
+Enter a vgrep command: R k c configuration
+Enter a vgrep command: p
+Index File                                                                                                                                      Line Content
+    0 spring-boot-starter/starter/src/main/java/org/camunda/bpm/spring/boot/starter/configuration/impl/DefaultJobConfiguration.java               69 configuration.setJobExecutorActivate(false);
+    1 camunda-bpm-spring-boot-starter/starter/src/main/java/org/camunda/bpm/spring/boot/starter/configuration/impl/DefaultJobConfiguration.java   69 configuration.setJobExecutorActivate(false);
+    2 engine/src/main/java/org/camunda/bpm/container/impl/deployment/StartProcessEngineStep.java                                                 100 setJobExecutorActivate(configuration, properties);
+    3 engine/src/main/java/org/camunda/bpm/container/impl/deployment/StartProcessEngineStep.java                                                 123 protected void setJobExecutorActivate(ProcessEngineConfigurationImpl configuration, Map<String, String> properties) {
+    4 engine/src/main/java/org/camunda/bpm/container/impl/deployment/StartProcessEngineStep.java                                                 126 configuration.setJobExecutorActivate(true);
 ```
-
-For further details on use of `functions` with `fish` shell, see [here](https://fishshell.com/docs/current/language.html#syntax-function). 
