@@ -1099,6 +1099,16 @@ func (v *vgrep) commandRefineExtended(action string, object string, expr string)
 			toDelete = append(toDelete, offset)
 		}
 	}
+
+	// Do not allow refine actions that would remove all matches.
+	if len(toDelete) == 0 {
+		fmt.Println("refine did not match any entries; aborting")
+		return false
+	} else if len(toDelete) == len(v.matches) && len(v.matches) > 0 {
+		fmt.Println("refine would remove all matches; aborting")
+		return false
+	}
+
 	return v.commandDelete(toDelete)
 }
 
