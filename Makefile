@@ -5,9 +5,9 @@ GO ?= go
 GOPATH := $(shell $(GO) env GOPATH)
 GOBIN := $(shell $(GO) env GOBIN)
 BUILD_DIR := ./build
-PREFIX := /usr/local
-BIN_DIR := $(PREFIX)/bin/
-MAN_DIR := ${PREFIX}/share/man
+PREFIX := $(if $(prefix),$(prefix),/usr/local)
+BIN_DIR := $(DESTDIR)$(PREFIX)/bin/
+MAN_DIR := $(DESTDIR)$(PREFIX)/share/man
 NAME := vgrep
 PROJECT := github.com/vrothberg/vgrep
 VERSION := $(shell cat ./VERSION)
@@ -93,7 +93,7 @@ vendor:
 
 .install.tools:
 	export \
-		VERSION=v1.60.3 \
+		VERSION=v1.64.6 \
 		URL=https://raw.githubusercontent.com/golangci/golangci-lint \
 		BINDIR=${BUILD_DIR} && \
 	curl -sfL $$URL/$$VERSION/install.sh | sh -s $$VERSION
