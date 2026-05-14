@@ -14,16 +14,16 @@ jobs:
     env:
       CODECOV_TOKEN: ENCRYPTED[64481ea00b08c4703bf350a2ad3d5a6fd7a00269576784b2943cce62604798e88f532e19fb66859fa68f43dbd4a0df15]
     steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-go@v5
+    - uses: actions/checkout@v6
+    - uses: actions/setup-go@v6
+      with:
+        go-version: '1.25'
     - name: vendor
       run: |
         make vendor
         ./hack/tree_status.sh
     - name: lint
-      run: |
-        make .install.tools
-        make check
+      run: make check
     - name: build
       run: |
         sudo apt-get -qq update
